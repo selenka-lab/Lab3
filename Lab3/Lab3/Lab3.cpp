@@ -42,11 +42,13 @@ struct Wall {
 };
 
 std::vector<Wall> walls;
-std::vector<Body> bodies;
+std::vector<Body> normalBodies;
+std::vector<Body> fastBodies;
 
 void reset() {
   walls.clear();
-  bodies.clear();
+  normalBodies.clear();
+  fastBodies.clear();
 
   walls.push_back({{600.f, 140.f}, {610.f, 460.f}, {230, 80, 80}});
 
@@ -54,15 +56,28 @@ void reset() {
   walls.push_back({{800.f, 300.f}, {880.f, 380.f}});
   walls.push_back({{500.f, 450.f}, {580.f, 530.f}});
 
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 14; ++i) {
     float r = 8.f + (i % 3) * 2.f;
-    bodies.push_back(
-        {{120.f + (i % 4) * 110.f, 90.f + (i / 4) * 100.f},
-         {(i % 2 == 0) ? 110.f : -110.f, ((i / 2) % 2 == 0) ? 70.f : -70.f},
+    normalBodies.push_back(
+        {{110.f + (i % 5) * 95.f, 80.f + (i / 5) * 110.f},
+         {(i % 2 == 0) ? 100.f : -100.f, ((i / 2) % 2 == 0) ? 65.f : -65.f},
          r,
          r * r / 100.f,
          0.85f});
   }
+  fastBodies.push_back({{40.f, 310.f},
+                        {2350.f, 15.f},
+                        6.f,
+                        0.5f,
+                        0.9f,
+                        sf::Color(255, 220, 50)});
+
+  fastBodies.push_back({{1150.f, 220.f},
+                        {-2150.f, 180.f},
+                        6.f,
+                        0.5f,
+                        0.9f,
+                        sf::Color(255, 160, 40)});
 }
 
 void collideWalls(Body& b) {
@@ -84,11 +99,11 @@ void collideWalls(Body& b) {
   }
 }
 
-void collideBodies() {
-  for (size_t i = 0; i < bodies.size(); ++i) {
-    for (size_t j = i + 1; j < bodies.size(); ++j) {
-      Body& a = bodies[i];
-      Body& b = bodies[j];
+void collideBodies(std::vector<Body>& list) {
+  for (size_t i = 0; i < list.size(); ++i) {
+    for (size_t j = i + 1; j < list.size(); ++j) {
+      Body& a = list[i];
+      Body& b = list[j];
 
       Vec2 d = b.pos - a.pos;
       float dist = d.length();
@@ -133,16 +148,23 @@ void keepInWindow(Body& b) {
 }
 
 void update(float dt) {
-  for (auto& b : bodies) {
+  for (auto& b : normalBodies) {
     b.pos += b.vel * dt;
     collideWalls(b);
     keepInWindow(b);
   }
-  collideBodies();
+  collideBodies(normalBodies);
+
+  for (auto& b : fastBodies) {
+    b.pos += b.vel * dt;
+    collideWalls(b);
+    keepInWindow(b);
+  }
 }
 
 int main() {
-  sf::RenderWindow window(sf::VideoMode({1200u, 600u}), "Дискретная физика");
+  sf::RenderWindow window(sf::VideoMode({1200u, 600u}),
+                          "Дискретная физика + туннелирование");
   window.setFramerateLimit(60);
   reset();
 
@@ -162,13 +184,18 @@ int main() {
       window.draw(rect);
     }
 
-    for (auto& b : bodies) {
-      sf::CircleShape c(b.r);
-      c.setOrigin({b.r, b.r});
-      c.setPosition({b.pos.x, b.pos.y});
-      c.setFillColor(b.color);
-      window.draw(c);
-    }
+    auto drawList = [&](const std::vector<Body>& list) {
+      for (auto& b : list) {
+        sf::CircleShape c(b.r);
+        c.setOrigin({b.r, b.r});
+        c.setPosition({b.pos.x, b.pos.y});
+        c.setFillColor(b.color);
+        window.draw(c);
+      }
+    };
+
+    drawList(normalBodies);
+    drawList(fastBodies);
 
     window.display();
   }
