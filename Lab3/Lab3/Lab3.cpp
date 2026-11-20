@@ -1,6 +1,7 @@
 ﻿#include <SFML/Graphics.hpp>
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <vector>
 
 struct Vec2 {
@@ -44,6 +45,9 @@ struct Wall {
 std::vector<Wall> walls;
 std::vector<Body> normalBodies;
 std::vector<Body> fastBodies;
+
+int simulationMode = 1;
+bool comparisonMode = false;
 
 void reset() {
   walls.clear();
@@ -246,22 +250,70 @@ void update(float dt) {
   }
   collideBodies(normalBodies);
 
-  for (auto& b : fastBodies) {
-    updateBodyCCD(b, dt);
+  if (simulationMode == 1) {
+    for (auto& b : fastBodies) {
+      if (comparisonMode) {
+        b.pos += b.vel * dt;
+        collideWalls(b);
+        keepInWindow(b);
+      } else {
+        updateBodyCCD(b, dt);
+      }
+    }
+  } else {
+    int substeps = comparisonMode ? 1 : 4;
+    float dtFast = dt / static_cast<float>(substeps);
+
+    for (int s = 0; s < substeps; ++s) {
+      for (auto& b : fastBodies) {
+        b.pos += b.vel * dtFast;
+        collideWalls(b);
+        keepInWindow(b);
+      }
+    }
   }
 }
 
 int main() {
-  sf::RenderWindow window(sf::VideoMode({1200u, 600u}), "CCD");
+  sf::RenderWindow window(sf::VideoMode({1200u, 600u}), "CCD + Multi-rate");
   window.setFramerateLimit(60);
   reset();
 
   while (window.isOpen()) {
     while (const std::optional<sf::Event> event = window.pollEvent()) {
       if (event->is<sf::Event::Closed>()) window.close();
+
+      if (const auto* key = event->getIf<sf::Event::KeyPressed>()) {
+        using Key = sf::Keyboard::Key;
+
+        if (key->code == Key::Num1) {
+          simulationMode = 1;
+          comparisonMode = false;
+          reset();
+        } else if (key->code == Key::Num2) {
+          simulationMode = 2;
+          comparisonMode = false;
+          reset();
+        } else if (key->code == Key::T) {
+          comparisonMode = !comparisonMode;
+          reset();
+        } else if (key->code == Key::R) {
+          reset();
+        }
+      }
     }
 
     update(1.f / 60.f);
+
+    std::string title;
+    if (simulationMode == 1)
+      title = comparisonMode ? "1: CCD [Discrete]" : "1: CCD [Active]";
+    else
+      title =
+          comparisonMode ? "2: Multi-rate [60Hz]" : "2: Multi-rate [60/240Hz]";
+
+    title += "   | 1/2 Mode | T Compare | R Reset";
+    window.setTitle(title);
 
     window.clear(sf::Color(22, 24, 30));
 
