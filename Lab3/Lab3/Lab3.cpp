@@ -147,6 +147,97 @@ void keepInWindow(Body& b) {
   }
 }
 
+bool raycastWall(Vec2 start, Vec2 delta, const Wall& w, float r, float& tOut,
+                 Vec2& nOut) {
+  Vec2 bmin{w.min.x - r, w.min.y - r};
+  Vec2 bmax{w.max.x + r, w.max.y + r};
+
+  float tNear = 0.f;
+  float tFar = 1.f;
+  Vec2 nNear;
+
+  if (std::abs(delta.x) < 1e-8f) {
+    if (start.x < bmin.x || start.x > bmax.x) return false;
+  } else {
+    float t1 = (bmin.x - start.x) / delta.x;
+    float t2 = (bmax.x - start.x) / delta.x;
+    Vec2 n = {-1.f, 0.f};
+    if (t1 > t2) {
+      std::swap(t1, t2);
+      n = {1.f, 0.f};
+    }
+    if (t1 > tNear) {
+      tNear = t1;
+      nNear = n;
+    }
+    if (t2 < tFar) tFar = t2;
+    if (tNear > tFar) return false;
+  }
+
+  if (std::abs(delta.y) < 1e-8f) {
+    if (start.y < bmin.y || start.y > bmax.y) return false;
+  } else {
+    float t1 = (bmin.y - start.y) / delta.y;
+    float t2 = (bmax.y - start.y) / delta.y;
+    Vec2 n = {0.f, -1.f};
+    if (t1 > t2) {
+      std::swap(t1, t2);
+      n = {0.f, 1.f};
+    }
+    if (t1 > tNear) {
+      tNear = t1;
+      nNear = n;
+    }
+    if (t2 < tFar) tFar = t2;
+    if (tNear > tFar) return false;
+  }
+
+  if (tNear >= 0.f && tNear <= 1.f) {
+    tOut = tNear;
+    nOut = nNear;
+    return true;
+  }
+  return false;
+}
+
+void updateBodyCCD(Body& b, float dt) {
+  float remaining = dt;
+
+  for (int iter = 0; iter < 4 && remaining > 1e-6f; ++iter) {
+    float earliest = remaining;
+    Vec2 hitN;
+    bool hit = false;
+
+    for (auto& w : walls) {
+      float t = 0.f;
+      Vec2 n;
+      if (raycastWall(b.pos, b.vel * remaining, w, b.r, t, n)) {
+        float hitTime = t * remaining;
+        if (hitTime < earliest) {
+          earliest = hitTime;
+          hitN = n;
+          hit = true;
+        }
+      }
+    }
+
+    if (hit) {
+      b.pos += b.vel * earliest + hitN * 0.02f;
+
+      float vn = b.vel.dot(hitN);
+      if (vn < 0.f) {
+        b.vel -= hitN * ((1.f + b.bounce) * vn);
+      }
+
+      remaining -= earliest;
+    } else {
+      b.pos += b.vel * remaining;
+      remaining = 0.f;
+    }
+  }
+
+  keepInWindow(b);
+}
 void update(float dt) {
   for (auto& b : normalBodies) {
     b.pos += b.vel * dt;
@@ -156,15 +247,12 @@ void update(float dt) {
   collideBodies(normalBodies);
 
   for (auto& b : fastBodies) {
-    b.pos += b.vel * dt;
-    collideWalls(b);
-    keepInWindow(b);
+    updateBodyCCD(b, dt);
   }
 }
 
 int main() {
-  sf::RenderWindow window(sf::VideoMode({1200u, 600u}),
-                          "Дискретная физика + туннелирование");
+  sf::RenderWindow window(sf::VideoMode({1200u, 600u}), "CCD");
   window.setFramerateLimit(60);
   reset();
 
