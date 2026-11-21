@@ -5,17 +5,19 @@
 
 #include "Vector2.h"
 
-struct Body {
-  Vec2 pos, vel;
-  float r = 10.f;
-  float mass = 1.f;
-  float bounce = 0.85f;
-  sf::Color color = sf::Color(80, 200, 255);
+struct CircleBody {
+  Vector2 position;
+  Vector2 velocity;
+  float radius = 10.0f;
+  float mass = 1.0f;
+  float restitution = 0.85f;
+  sf::Color color = sf::Color::White;
 };
 
 struct Wall {
-  Vec2 min, max;
-  sf::Color color = sf::Color(120, 125, 145);
+  Vector2 minBound;
+  Vector2 maxBound;
+  sf::Color color = sf::Color(220, 50, 50);
 };
 
 class PhysicsWorld {
@@ -24,24 +26,24 @@ class PhysicsWorld {
   bool comparisonMode = false;
 
   double stepTimeMs = 0.0;
-  int substeps = 0;
+  int substepsCompleted = 0;
 
   void reset();
-  void update(float dt);
-  void handleEvent(const sf::Event& e);
-  void draw(sf::RenderWindow& win);
-  std::string getTitle() const;
+  void update(float deltaTime);
+  void handleEvent(const sf::Event& event);
+  void draw(sf::RenderWindow& window);
+  std::string getWindowTitle() const;
 
  private:
   std::vector<Wall> walls;
-  std::vector<Body> normalBodies;
-  std::vector<Body> fastBodies;
+  std::vector<CircleBody> normalBodies;
+  std::vector<CircleBody> fastBodies;
 
-  void collideWalls(Body& b);
-  void collideBodies(std::vector<Body>& list);
-  void keepInWindow(Body& b);
+  void resolveWallCollisions(CircleBody& body);
+  void resolveCircleCollisions(std::vector<CircleBody>& bodies);
+  void clampToWindow(CircleBody& body);
 
-  bool raycastWall(Vec2 start, Vec2 delta, const Wall& w, float r, float& tOut,
-                   Vec2& nOut);
-  void updateBodyCCD(Body& b, float dt);
+  bool raycastAgainstWall(Vector2 start, Vector2 delta, const Wall& wall,
+                          float radius, float& hitFraction, Vector2& hitNormal);
+  void updateBodyContinuous(CircleBody& body, float deltaTime);
 };

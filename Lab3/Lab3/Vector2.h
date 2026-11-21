@@ -1,27 +1,33 @@
 #pragma once
 #include <cmath>
 
-struct Vec2 {
-  float x = 0.f, y = 0.f;
+struct Vector2 {
+  float x = 0.0f;
+  float y = 0.0f;
 
-  Vec2() = default;
-  Vec2(float x, float y) : x(x), y(y) {}
+  Vector2() = default;
+  Vector2(float x, float y) : x(x), y(y) {}
 
-  Vec2 operator+(const Vec2& o) const { return {x + o.x, y + o.y}; }
-  Vec2 operator-(const Vec2& o) const { return {x - o.x, y - o.y}; }
-  Vec2 operator*(float s) const { return {x * s, y * s}; }
+  Vector2 operator+(const Vector2& other) const {
+    return {x + other.x, y + other.y};
+  }
+  Vector2 operator-(const Vector2& other) const {
+    return {x - other.x, y - other.y};
+  }
+  Vector2 operator*(float scalar) const { return {x * scalar, y * scalar}; }
 
-  Vec2& operator+=(const Vec2& o) {
-    x += o.x;
-    y += o.y;
+  Vector2& operator+=(const Vector2& other) {
+    x += other.x;
+    y += other.y;
     return *this;
   }
-  Vec2& operator-=(const Vec2& o) {
-    x -= o.x;
-    y -= o.y;
+
+  Vector2& operator-=(const Vector2& other) {
+    x -= other.x;
+    y -= other.y;
     return *this;
   }
 
-  float dot(const Vec2& o) const { return x * o.x + y * o.y; }
+  float dot(const Vector2& other) const { return x * other.x + y * other.y; }
   float length() const { return std::sqrt(x * x + y * y); }
 };

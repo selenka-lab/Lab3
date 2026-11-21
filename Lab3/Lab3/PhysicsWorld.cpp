@@ -9,236 +9,257 @@ void PhysicsWorld::reset() {
   normalBodies.clear();
   fastBodies.clear();
 
-  walls.push_back({{600.f, 140.f}, {610.f, 460.f}, {230, 80, 80}});
+  walls.push_back({{600.f, 140.f}, {610.f, 460.f}, sf::Color(220, 40, 40)});
 
-  walls.push_back({{300.f, 200.f}, {380.f, 280.f}});
-  walls.push_back({{800.f, 300.f}, {880.f, 380.f}});
-  walls.push_back({{500.f, 450.f}, {580.f, 530.f}});
+  walls.push_back({{300.f, 200.f}, {380.f, 280.f}, sf::Color(220, 40, 40)});
+  walls.push_back({{800.f, 200.f}, {880.f, 280.f}, sf::Color(220, 40, 40)});
+  walls.push_back({{300.f, 450.f}, {380.f, 530.f}, sf::Color(220, 40, 40)});
+  walls.push_back({{800.f, 450.f}, {880.f, 530.f}, sf::Color(220, 40, 40)});
 
   for (int i = 0; i < 14; ++i) {
-    float r = 8.f + (i % 3) * 2.f;
+    float radius = 8.f + (i % 3) * 2.f;
     normalBodies.push_back(
         {{110.f + (i % 5) * 95.f, 80.f + (i / 5) * 110.f},
          {(i % 2 == 0) ? 100.f : -100.f, ((i / 2) % 2 == 0) ? 65.f : -65.f},
-         r,
-         r * r / 100.f,
-         0.85f});
+         radius,
+         radius * radius / 100.f,
+         0.85f,
+         sf::Color::White});
   }
 
-  fastBodies.push_back({{40.f, 310.f},
-                        {2350.f, 15.f},
-                        6.f,
-                        0.5f,
-                        0.9f,
-                        sf::Color(255, 220, 50)});
+  fastBodies.push_back(
+      {{40.f, 310.f}, {2350.f, 15.f}, 6.f, 0.5f, 0.9f, sf::Color(255, 215, 0)});
 
   fastBodies.push_back({{1150.f, 220.f},
                         {-2150.f, 180.f},
                         6.f,
                         0.5f,
                         0.9f,
-                        sf::Color(255, 160, 40)});
+                        sf::Color(192, 192, 192)});
 }
 
-void PhysicsWorld::collideWalls(Body& b) {
-  for (auto& w : walls) {
-    float cx = std::clamp(b.pos.x, w.min.x, w.max.x);
-    float cy = std::clamp(b.pos.y, w.min.y, w.max.y);
-    Vec2 d = b.pos - Vec2{cx, cy};
-    float dist = d.length();
+void PhysicsWorld::resolveWallCollisions(CircleBody& body) {
+  for (const auto& wall : walls) {
+    float closestX =
+        std::clamp(body.position.x, wall.minBound.x, wall.maxBound.x);
+    float closestY =
+        std::clamp(body.position.y, wall.minBound.y, wall.maxBound.y);
 
-    if (dist < b.r && dist > 0.001f) {
-      Vec2 n = d * (1.f / dist);
-      b.pos += n * (b.r - dist);
+    Vector2 delta = body.position - Vector2{closestX, closestY};
+    float distance = delta.length();
 
-      float vn = b.vel.dot(n);
-      if (vn < 0.f) {
-        b.vel -= n * ((1.f + b.bounce) * vn);
+    if (distance < body.radius && distance > 0.001f) {
+      Vector2 normal = delta * (1.f / distance);
+      body.position += normal * (body.radius - distance);
+
+      float velocityAlongNormal = body.velocity.dot(normal);
+      if (velocityAlongNormal < 0.f) {
+        body.velocity -=
+            normal * ((1.f + body.restitution) * velocityAlongNormal);
       }
     }
   }
 }
 
-void PhysicsWorld::collideBodies(std::vector<Body>& list) {
-  for (size_t i = 0; i < list.size(); ++i) {
-    for (size_t j = i + 1; j < list.size(); ++j) {
-      Body& a = list[i];
-      Body& b = list[j];
+void PhysicsWorld::resolveCircleCollisions(std::vector<CircleBody>& bodies) {
+  for (size_t i = 0; i < bodies.size(); ++i) {
+    for (size_t j = i + 1; j < bodies.size(); ++j) {
+      CircleBody& a = bodies[i];
+      CircleBody& b = bodies[j];
 
-      Vec2 d = b.pos - a.pos;
-      float dist = d.length();
-      float minDist = a.r + b.r;
+      Vector2 delta = b.position - a.position;
+      float distance = delta.length();
+      float minDistance = a.radius + b.radius;
 
-      if (dist < minDist && dist > 0.001f) {
-        Vec2 n = d * (1.f / dist);
-        float corr = 0.5f * (minDist - dist);
-        a.pos -= n * corr;
-        b.pos += n * corr;
+      if (distance < minDistance && distance > 0.001f) {
+        Vector2 normal = delta * (1.f / distance);
+        float correction = 0.5f * (minDistance - distance);
 
-        float vn = (b.vel - a.vel).dot(n);
-        if (vn < 0.f) {
-          float e = std::min(a.bounce, b.bounce);
-          float jImp = -(1.f + e) * vn / (1.f / a.mass + 1.f / b.mass);
-          Vec2 imp = n * jImp;
-          a.vel -= imp * (1.f / a.mass);
-          b.vel += imp * (1.f / b.mass);
+        a.position -= normal * correction;
+        b.position += normal * correction;
+
+        float relativeVelocity = (b.velocity - a.velocity).dot(normal);
+        if (relativeVelocity < 0.f) {
+          float e = std::min(a.restitution, b.restitution);
+          float impulseMagnitude =
+              -(1.f + e) * relativeVelocity / (1.f / a.mass + 1.f / b.mass);
+          Vector2 impulse = normal * impulseMagnitude;
+
+          a.velocity -= impulse * (1.f / a.mass);
+          b.velocity += impulse * (1.f / b.mass);
         }
       }
     }
   }
 }
 
-void PhysicsWorld::keepInWindow(Body& b) {
-  if (b.pos.x < b.r) {
-    b.pos.x = b.r;
-    if (b.vel.x < 0) b.vel.x = -b.vel.x * b.bounce;
+void PhysicsWorld::clampToWindow(CircleBody& body) {
+  const float width = 1200.f;
+  const float height = 600.f;
+
+  if (body.position.x < body.radius) {
+    body.position.x = body.radius;
+    if (body.velocity.x < 0.f)
+      body.velocity.x = -body.velocity.x * body.restitution;
   }
-  if (b.pos.x > 1200.f - b.r) {
-    b.pos.x = 1200.f - b.r;
-    if (b.vel.x > 0) b.vel.x = -b.vel.x * b.bounce;
+  if (body.position.x > width - body.radius) {
+    body.position.x = width - body.radius;
+    if (body.velocity.x > 0.f)
+      body.velocity.x = -body.velocity.x * body.restitution;
   }
-  if (b.pos.y < b.r) {
-    b.pos.y = b.r;
-    if (b.vel.y < 0) b.vel.y = -b.vel.y * b.bounce;
+  if (body.position.y < body.radius) {
+    body.position.y = body.radius;
+    if (body.velocity.y < 0.f)
+      body.velocity.y = -body.velocity.y * body.restitution;
   }
-  if (b.pos.y > 600.f - b.r) {
-    b.pos.y = 600.f - b.r;
-    if (b.vel.y > 0) b.vel.y = -b.vel.y * b.bounce;
+  if (body.position.y > height - body.radius) {
+    body.position.y = height - body.radius;
+    if (body.velocity.y > 0.f)
+      body.velocity.y = -body.velocity.y * body.restitution;
   }
 }
 
-bool PhysicsWorld::raycastWall(Vec2 start, Vec2 delta, const Wall& w, float r,
-                               float& tOut, Vec2& nOut) {
-  Vec2 bmin{w.min.x - r, w.min.y - r};
-  Vec2 bmax{w.max.x + r, w.max.y + r};
+bool PhysicsWorld::raycastAgainstWall(Vector2 start, Vector2 delta,
+                                      const Wall& wall, float radius,
+                                      float& hitFraction, Vector2& hitNormal) {
+  Vector2 expandedMin{wall.minBound.x - radius, wall.minBound.y - radius};
+  Vector2 expandedMax{wall.maxBound.x + radius, wall.maxBound.y + radius};
 
   float tNear = 0.f;
   float tFar = 1.f;
-  Vec2 nNear;
+  Vector2 bestNormal;
 
   if (std::abs(delta.x) < 1e-8f) {
-    if (start.x < bmin.x || start.x > bmax.x) return false;
+    if (start.x < expandedMin.x || start.x > expandedMax.x) return false;
   } else {
-    float t1 = (bmin.x - start.x) / delta.x;
-    float t2 = (bmax.x - start.x) / delta.x;
-    Vec2 n = {-1.f, 0.f};
+    float t1 = (expandedMin.x - start.x) / delta.x;
+    float t2 = (expandedMax.x - start.x) / delta.x;
+    Vector2 normal = {-1.f, 0.f};
+
     if (t1 > t2) {
       std::swap(t1, t2);
-      n = {1.f, 0.f};
+      normal = {1.f, 0.f};
     }
     if (t1 > tNear) {
       tNear = t1;
-      nNear = n;
+      bestNormal = normal;
     }
     if (t2 < tFar) tFar = t2;
     if (tNear > tFar) return false;
   }
 
   if (std::abs(delta.y) < 1e-8f) {
-    if (start.y < bmin.y || start.y > bmax.y) return false;
+    if (start.y < expandedMin.y || start.y > expandedMax.y) return false;
   } else {
-    float t1 = (bmin.y - start.y) / delta.y;
-    float t2 = (bmax.y - start.y) / delta.y;
-    Vec2 n = {0.f, -1.f};
+    float t1 = (expandedMin.y - start.y) / delta.y;
+    float t2 = (expandedMax.y - start.y) / delta.y;
+    Vector2 normal = {0.f, -1.f};
+
     if (t1 > t2) {
       std::swap(t1, t2);
-      n = {0.f, 1.f};
+      normal = {0.f, 1.f};
     }
     if (t1 > tNear) {
       tNear = t1;
-      nNear = n;
+      bestNormal = normal;
     }
     if (t2 < tFar) tFar = t2;
     if (tNear > tFar) return false;
   }
 
   if (tNear >= 0.f && tNear <= 1.f) {
-    tOut = tNear;
-    nOut = nNear;
+    hitFraction = tNear;
+    hitNormal = bestNormal;
     return true;
   }
   return false;
 }
 
-void PhysicsWorld::updateBodyCCD(Body& b, float dt) {
-  float remaining = dt;
+void PhysicsWorld::updateBodyContinuous(CircleBody& body, float deltaTime) {
+  float remainingTime = deltaTime;
 
-  for (int iter = 0; iter < 4 && remaining > 1e-6f; ++iter) {
-    float earliest = remaining;
-    Vec2 hitN;
-    bool hit = false;
+  for (int iteration = 0; iteration < 4 && remainingTime > 1e-6f; ++iteration) {
+    float earliestHitTime = remainingTime;
+    Vector2 hitNormal;
+    bool hasHit = false;
 
-    for (auto& w : walls) {
-      float t = 0.f;
-      Vec2 n;
-      if (raycastWall(b.pos, b.vel * remaining, w, b.r, t, n)) {
-        float hitTime = t * remaining;
-        if (hitTime < earliest) {
-          earliest = hitTime;
-          hitN = n;
-          hit = true;
+    for (const auto& wall : walls) {
+      float fraction = 0.f;
+      Vector2 normal;
+
+      if (raycastAgainstWall(body.position, body.velocity * remainingTime, wall,
+                             body.radius, fraction, normal)) {
+        float hitTime = fraction * remainingTime;
+        if (hitTime < earliestHitTime) {
+          earliestHitTime = hitTime;
+          hitNormal = normal;
+          hasHit = true;
         }
       }
     }
 
-    if (hit) {
-      b.pos += b.vel * earliest + hitN * 0.02f;
-      float vn = b.vel.dot(hitN);
-      if (vn < 0.f) {
-        b.vel -= hitN * ((1.f + b.bounce) * vn);
+    if (hasHit) {
+      body.position += body.velocity * earliestHitTime + hitNormal * 0.02f;
+
+      float velocityAlongNormal = body.velocity.dot(hitNormal);
+      if (velocityAlongNormal < 0.f) {
+        body.velocity -=
+            hitNormal * ((1.f + body.restitution) * velocityAlongNormal);
       }
-      remaining -= earliest;
+
+      remainingTime -= earliestHitTime;
     } else {
-      b.pos += b.vel * remaining;
-      remaining = 0.f;
+      body.position += body.velocity * remainingTime;
+      remainingTime = 0.f;
     }
   }
 
-  keepInWindow(b);
+  clampToWindow(body);
 }
 
-void PhysicsWorld::update(float dt) {
-  auto t0 = std::chrono::high_resolution_clock::now();
-  substeps = 0;
+void PhysicsWorld::update(float deltaTime) {
+  auto startTime = std::chrono::high_resolution_clock::now();
+  substepsCompleted = 0;
 
-  for (auto& b : normalBodies) {
-    b.pos += b.vel * dt;
-    collideWalls(b);
-    keepInWindow(b);
+  for (auto& body : normalBodies) {
+    body.position += body.velocity * deltaTime;
+    resolveWallCollisions(body);
+    clampToWindow(body);
   }
-  collideBodies(normalBodies);
+  resolveCircleCollisions(normalBodies);
 
   if (simulationMode == 1) {
-    for (auto& b : fastBodies) {
+    for (auto& body : fastBodies) {
       if (comparisonMode) {
-        b.pos += b.vel * dt;
-        collideWalls(b);
-        keepInWindow(b);
+        body.position += body.velocity * deltaTime;
+        resolveWallCollisions(body);
+        clampToWindow(body);
       } else {
-        updateBodyCCD(b, dt);
+        updateBodyContinuous(body, deltaTime);
       }
     }
-    substeps = 1;
+    substepsCompleted = 1;
   } else {
     int steps = comparisonMode ? 1 : 4;
-    float dtFast = dt / static_cast<float>(steps);
+    float fastDeltaTime = deltaTime / static_cast<float>(steps);
 
     for (int s = 0; s < steps; ++s) {
-      for (auto& b : fastBodies) {
-        b.pos += b.vel * dtFast;
-        collideWalls(b);
-        keepInWindow(b);
+      for (auto& body : fastBodies) {
+        body.position += body.velocity * fastDeltaTime;
+        resolveWallCollisions(body);
+        clampToWindow(body);
       }
-      ++substeps;
+      ++substepsCompleted;
     }
   }
 
-  auto t1 = std::chrono::high_resolution_clock::now();
-  stepTimeMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+  auto endTime = std::chrono::high_resolution_clock::now();
+  stepTimeMs =
+      std::chrono::duration<double, std::milli>(endTime - startTime).count();
 }
 
-void PhysicsWorld::handleEvent(const sf::Event& e) {
-  if (const auto* key = e.getIf<sf::Event::KeyPressed>()) {
+void PhysicsWorld::handleEvent(const sf::Event& event) {
+  if (const auto* key = event.getIf<sf::Event::KeyPressed>()) {
     using Key = sf::Keyboard::Key;
 
     if (key->code == Key::Num1) {
@@ -258,37 +279,40 @@ void PhysicsWorld::handleEvent(const sf::Event& e) {
   }
 }
 
-void PhysicsWorld::draw(sf::RenderWindow& win) {
-  for (auto& w : walls) {
-    sf::RectangleShape rect({w.max.x - w.min.x, w.max.y - w.min.y});
-    rect.setPosition({w.min.x, w.min.y});
-    rect.setFillColor(w.color);
-    win.draw(rect);
+void PhysicsWorld::draw(sf::RenderWindow& window) {
+  for (const auto& wall : walls) {
+    sf::RectangleShape rect(
+        {wall.maxBound.x - wall.minBound.x, wall.maxBound.y - wall.minBound.y});
+    rect.setPosition({wall.minBound.x, wall.minBound.y});
+    rect.setFillColor(wall.color);
+    window.draw(rect);
   }
 
-  auto drawList = [&](const std::vector<Body>& list) {
-    for (auto& b : list) {
-      sf::CircleShape c(b.r);
-      c.setOrigin({b.r, b.r});
-      c.setPosition({b.pos.x, b.pos.y});
-      c.setFillColor(b.color);
-      win.draw(c);
+  auto drawBodies = [&](const std::vector<CircleBody>& bodies) {
+    for (const auto& body : bodies) {
+      sf::CircleShape circle(body.radius);
+      circle.setOrigin({body.radius, body.radius});
+      circle.setPosition({body.position.x, body.position.y});
+      circle.setFillColor(body.color);
+      window.draw(circle);
     }
   };
 
-  drawList(normalBodies);
-  drawList(fastBodies);
+  drawBodies(normalBodies);
+  drawBodies(fastBodies);
 }
 
-std::string PhysicsWorld::getTitle() const {
-  std::string name;
+std::string PhysicsWorld::getWindowTitle() const {
+  std::string modeName;
 
-  if (simulationMode == 1)
-    name = comparisonMode ? "1: CCD [Discrete]" : "1: CCD [Active]";
-  else
-    name = comparisonMode ? "2: Multi-rate [60Hz]" : "2: Multi-rate [60/240Hz]";
+  if (simulationMode == 1) {
+    modeName = comparisonMode ? "1: CCD [Discrete 60Hz]" : "1: CCD [Active]";
+  } else {
+    modeName = comparisonMode ? "2: Multi-rate [60Hz]"
+                              : "2: Multi-rate [60Hz / 240Hz]";
+  }
 
-  return name + " | " + std::to_string(stepTimeMs) + " ms" +
-         " | sub: " + std::to_string(substeps) +
+  return modeName + " | " + std::to_string(stepTimeMs) + " ms" +
+         " | substeps: " + std::to_string(substepsCompleted) +
          " | [1,2 Mode | T Compare | R Reset]";
 }

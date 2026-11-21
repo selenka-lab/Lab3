@@ -3,7 +3,8 @@
 #include "PhysicsWorld.h"
 
 int main() {
-  sf::RenderWindow window(sf::VideoMode({1200u, 600u}), "2D Physics");
+  sf::RenderWindow window(sf::VideoMode({1200u, 600u}),
+                          "2D Physics - CCD & Multi-rate");
   window.setFramerateLimit(60);
 
   PhysicsWorld world;
@@ -17,10 +18,10 @@ int main() {
         world.handleEvent(*event);
     }
 
-    world.update(1.f / 60.f);
-    window.setTitle(world.getTitle());
+    world.update(1.0f / 60.0f);
+    window.setTitle(world.getWindowTitle());
 
-    window.clear(sf::Color(22, 24, 30));
+    window.clear(sf::Color::Black);
     world.draw(window);
     window.display();
   }
