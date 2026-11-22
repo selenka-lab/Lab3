@@ -25,6 +25,7 @@ class PhysicsWorld {
   int simulationMode = 1;
   bool comparisonMode = false;
 
+  double smoothedStepTimeMs = 0.0;
   double stepTimeMs = 0.0;
   int substepsCompleted = 0;
 

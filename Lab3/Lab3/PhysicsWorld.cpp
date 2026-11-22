@@ -254,8 +254,13 @@ void PhysicsWorld::update(float deltaTime) {
   }
 
   auto endTime = std::chrono::high_resolution_clock::now();
-  stepTimeMs =
+  double currentMs =
       std::chrono::duration<double, std::milli>(endTime - startTime).count();
+
+  const double smoothFactor = 0.08;
+  smoothedStepTimeMs =
+      smoothedStepTimeMs * (1.0 - smoothFactor) + currentMs * smoothFactor;
+  stepTimeMs = smoothedStepTimeMs;
 }
 
 void PhysicsWorld::handleEvent(const sf::Event& event) {
@@ -312,7 +317,8 @@ std::string PhysicsWorld::getWindowTitle() const {
                               : "2: Multi-rate [60Hz / 240Hz]";
   }
 
-  return modeName + " | " + std::to_string(stepTimeMs) + " ms" +
-         " | substeps: " + std::to_string(substepsCompleted) +
+  return modeName + " | " +
+         std::to_string(static_cast<int>(stepTimeMs * 1000.0) / 1000.0) +
+         " ms" + " | substeps: " + std::to_string(substepsCompleted) +
          " | [1,2 Mode | T Compare | R Reset]";
 }
