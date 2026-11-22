@@ -25,8 +25,8 @@ class PhysicsWorld {
   int simulationMode = 1;
   bool comparisonMode = false;
 
-  double smoothedStepTimeMs = 0.0;
   double stepTimeMs = 0.0;
+  double smoothedStepTimeMs = 0.0;
   int substepsCompleted = 0;
 
   void reset();
@@ -42,6 +42,8 @@ class PhysicsWorld {
 
   void resolveWallCollisions(CircleBody& body);
   void resolveCircleCollisions(std::vector<CircleBody>& bodies);
+  void resolveCollisionsBetween(std::vector<CircleBody>& groupA,
+                                std::vector<CircleBody>& groupB);
   void clampToWindow(CircleBody& body);
 
   bool raycastAgainstWall(Vector2 start, Vector2 delta, const Wall& wall,

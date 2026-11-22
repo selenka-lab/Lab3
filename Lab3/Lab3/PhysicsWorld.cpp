@@ -93,6 +93,36 @@ void PhysicsWorld::resolveCircleCollisions(std::vector<CircleBody>& bodies) {
   }
 }
 
+void PhysicsWorld::resolveCollisionsBetween(std::vector<CircleBody>& groupA,
+                                            std::vector<CircleBody>& groupB) {
+  for (auto& a : groupA) {
+    for (auto& b : groupB) {
+      Vector2 delta = b.position - a.position;
+      float distance = delta.length();
+      float minDistance = a.radius + b.radius;
+
+      if (distance < minDistance && distance > 0.001f) {
+        Vector2 normal = delta * (1.f / distance);
+        float correction = 0.5f * (minDistance - distance);
+
+        a.position -= normal * correction;
+        b.position += normal * correction;
+
+        float relativeVelocity = (b.velocity - a.velocity).dot(normal);
+        if (relativeVelocity < 0.f) {
+          float e = std::min(a.restitution, b.restitution);
+          float impulseMagnitude =
+              -(1.f + e) * relativeVelocity / (1.f / a.mass + 1.f / b.mass);
+          Vector2 impulse = normal * impulseMagnitude;
+
+          a.velocity -= impulse * (1.f / a.mass);
+          b.velocity += impulse * (1.f / b.mass);
+        }
+      }
+    }
+  }
+}
+
 void PhysicsWorld::clampToWindow(CircleBody& body) {
   const float width = 1200.f;
   const float height = 600.f;
@@ -140,6 +170,7 @@ bool PhysicsWorld::raycastAgainstWall(Vector2 start, Vector2 delta,
       std::swap(t1, t2);
       normal = {1.f, 0.f};
     }
+
     if (t1 > tNear) {
       tNear = t1;
       bestNormal = normal;
@@ -159,6 +190,7 @@ bool PhysicsWorld::raycastAgainstWall(Vector2 start, Vector2 delta,
       std::swap(t1, t2);
       normal = {0.f, 1.f};
     }
+
     if (t1 > tNear) {
       tNear = t1;
       bestNormal = normal;
@@ -227,6 +259,7 @@ void PhysicsWorld::update(float deltaTime) {
     clampToWindow(body);
   }
   resolveCircleCollisions(normalBodies);
+  resolveCollisionsBetween(normalBodies, fastBodies);
 
   if (simulationMode == 1) {
     for (auto& body : fastBodies) {
@@ -238,6 +271,7 @@ void PhysicsWorld::update(float deltaTime) {
         updateBodyContinuous(body, deltaTime);
       }
     }
+    resolveCollisionsBetween(normalBodies, fastBodies);
     substepsCompleted = 1;
   } else {
     int steps = comparisonMode ? 1 : 4;
@@ -249,6 +283,7 @@ void PhysicsWorld::update(float deltaTime) {
         resolveWallCollisions(body);
         clampToWindow(body);
       }
+      resolveCollisionsBetween(normalBodies, fastBodies);
       ++substepsCompleted;
     }
   }
