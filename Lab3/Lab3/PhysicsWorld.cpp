@@ -254,6 +254,9 @@ void PhysicsWorld::update(float deltaTime) {
   substepsCompleted = 0;
 
   for (auto& body : normalBodies) {
+    if (gravityEnabled) {
+      body.velocity.y += gravity * deltaTime;
+    }
     body.position += body.velocity * deltaTime;
     resolveWallCollisions(body);
     clampToWindow(body);
@@ -263,6 +266,10 @@ void PhysicsWorld::update(float deltaTime) {
 
   if (simulationMode == 1) {
     for (auto& body : fastBodies) {
+      if (gravityEnabled) {
+        body.velocity.y += gravity * deltaTime;
+      }
+
       if (comparisonMode) {
         body.position += body.velocity * deltaTime;
         resolveWallCollisions(body);
@@ -279,6 +286,9 @@ void PhysicsWorld::update(float deltaTime) {
 
     for (int s = 0; s < steps; ++s) {
       for (auto& body : fastBodies) {
+        if (gravityEnabled) {
+          body.velocity.y += gravity * fastDeltaTime;
+        }
         body.position += body.velocity * fastDeltaTime;
         resolveWallCollisions(body);
         clampToWindow(body);
@@ -315,6 +325,8 @@ void PhysicsWorld::handleEvent(const sf::Event& event) {
       reset();
     } else if (key->code == Key::R) {
       reset();
+    } else if (key->code == Key::G) {
+      gravityEnabled = !gravityEnabled;
     }
   }
 }
@@ -352,8 +364,10 @@ std::string PhysicsWorld::getWindowTitle() const {
                               : "2: Multi-rate [60Hz / 240Hz]";
   }
 
+  std::string gravityStr = gravityEnabled ? " | Gravity ON" : " | Gravity OFF";
+
   return modeName + " | " +
          std::to_string(static_cast<int>(stepTimeMs * 1000.0) / 1000.0) +
          " ms" + " | substeps: " + std::to_string(substepsCompleted) +
-         " | [1,2 Mode | T Compare | R Reset]";
+         gravityStr + " | [1,2,T,R,G]";
 }

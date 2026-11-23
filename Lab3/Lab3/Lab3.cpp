@@ -3,8 +3,7 @@
 #include "PhysicsWorld.h"
 
 int main() {
-  sf::RenderWindow window(sf::VideoMode({1200u, 600u}),
-                          "2D Physics - CCD & Multi-rate");
+  sf::RenderWindow window(sf::VideoMode({1200u, 600u}), "2D Physics");
   window.setFramerateLimit(60);
 
   PhysicsWorld world;

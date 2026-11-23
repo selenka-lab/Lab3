@@ -24,6 +24,7 @@ class PhysicsWorld {
  public:
   int simulationMode = 1;
   bool comparisonMode = false;
+  bool gravityEnabled = false;
 
   double stepTimeMs = 0.0;
   double smoothedStepTimeMs = 0.0;
@@ -39,6 +40,8 @@ class PhysicsWorld {
   std::vector<Wall> walls;
   std::vector<CircleBody> normalBodies;
   std::vector<CircleBody> fastBodies;
+
+  const float gravity = 120.0f;
 
   void resolveWallCollisions(CircleBody& body);
   void resolveCircleCollisions(std::vector<CircleBody>& bodies);
