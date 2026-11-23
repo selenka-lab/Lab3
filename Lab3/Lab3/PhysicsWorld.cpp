@@ -11,10 +11,10 @@ void PhysicsWorld::reset() {
 
   walls.push_back({{600.f, 140.f}, {610.f, 460.f}, sf::Color(220, 40, 40)});
 
-  walls.push_back({{300.f, 200.f}, {380.f, 280.f}, sf::Color(220, 40, 40)});
-  walls.push_back({{800.f, 200.f}, {880.f, 280.f}, sf::Color(220, 40, 40)});
-  walls.push_back({{300.f, 450.f}, {380.f, 530.f}, sf::Color(220, 40, 40)});
-  walls.push_back({{800.f, 450.f}, {880.f, 530.f}, sf::Color(220, 40, 40)});
+  walls.push_back({{300.f, 200.f}, {340.f, 240.f}, sf::Color(220, 40, 40)});
+  walls.push_back({{800.f, 200.f}, {840.f, 240.f}, sf::Color(220, 40, 40)});
+  walls.push_back({{300.f, 450.f}, {340.f, 490.f}, sf::Color(220, 40, 40)});
+  walls.push_back({{800.f, 450.f}, {840.f, 490.f}, sf::Color(220, 40, 40)});
 
   for (int i = 0; i < 14; ++i) {
     float radius = 8.f + (i % 3) * 2.f;
@@ -28,10 +28,10 @@ void PhysicsWorld::reset() {
   }
 
   fastBodies.push_back(
-      {{40.f, 310.f}, {2350.f, 15.f}, 6.f, 0.5f, 0.9f, sf::Color(255, 215, 0)});
+      {{40.f, 310.f}, {2000.f, 0.f}, 6.f, 0.5f, 0.9f, sf::Color(255, 215, 0)});
 
   fastBodies.push_back({{1150.f, 220.f},
-                        {-2150.f, 180.f},
+                        {-2000.f, 0.f},
                         6.f,
                         0.5f,
                         0.9f,
