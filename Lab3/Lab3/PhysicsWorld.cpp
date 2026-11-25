@@ -263,6 +263,7 @@ void PhysicsWorld::update(float deltaTime) {
   }
   resolveCircleCollisions(normalBodies);
   resolveCollisionsBetween(normalBodies, fastBodies);
+  resolveCircleCollisions(fastBodies);
 
   if (simulationMode == 1) {
     for (auto& body : fastBodies) {
@@ -278,6 +279,7 @@ void PhysicsWorld::update(float deltaTime) {
         updateBodyContinuous(body, deltaTime);
       }
     }
+    resolveCircleCollisions(fastBodies);
     resolveCollisionsBetween(normalBodies, fastBodies);
     substepsCompleted = 1;
   } else {
@@ -293,6 +295,7 @@ void PhysicsWorld::update(float deltaTime) {
         resolveWallCollisions(body);
         clampToWindow(body);
       }
+      resolveCircleCollisions(fastBodies);
       resolveCollisionsBetween(normalBodies, fastBodies);
       ++substepsCompleted;
     }
